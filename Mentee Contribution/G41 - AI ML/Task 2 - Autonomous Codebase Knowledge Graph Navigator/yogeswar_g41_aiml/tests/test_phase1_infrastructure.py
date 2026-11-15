@@ -219,10 +219,14 @@ def test_docker_compose_topology():
     assert "ports" not in services["neo4j"], "Neo4j must not publish host ports directly"
     assert "ports" not in services["mcp"], "MCP must not publish host ports directly"
 
-    # Verify Nginx exposes ports 80 and 443
+    # Verify Nginx securely binds ports 80 and 443 to loopback
     nginx_ports = services["nginx"].get("ports", [])
-    assert "443:443" in nginx_ports
-    assert "80:80" in nginx_ports
+    assert "127.0.0.1:443:443" in nginx_ports or "443:443" in nginx_ports
+    assert "127.0.0.1:80:80" in nginx_ports or "80:80" in nginx_ports
+    # Specifically enforce loopback binding for security
+    assert any(p in nginx_ports for p in ["127.0.0.1:443:443", "443:443"])
+    assert "127.0.0.1:443:443" in nginx_ports
+    assert "127.0.0.1:80:80" in nginx_ports
 
 
 def test_neo4j_service_configuration():

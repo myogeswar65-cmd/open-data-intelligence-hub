@@ -157,48 +157,58 @@ export const KnowledgeGraphPage: React.FC = () => {
         console.warn('Statistics fetch non-fatal error:', e);
       }
 
-      // 3. Fetch relationships by querying neighbors for functions & classes
-      const targetEntities = rawEntities.filter((e) =>
-        e.entity_types.some((t) => ['Function', 'Class'].includes(t))
-      );
-
-      const collectedEdges: GraphEdge[] = [];
-      const edgeKeySet = new Set<string>();
-
-      await Promise.all(
-        targetEntities.slice(0, 15).map(async (ent) => {
-          try {
-            const nResp = await authFetch(
-              `/api/v1/repos/${encodeURIComponent(repoId)}/snapshots/${encodeURIComponent(commitSha)}/graph/entities/${encodeURIComponent(ent.entity_id)}/neighbors`
-            );
-            if (nResp.ok) {
-              const nData = await nResp.json();
-              const outDeps = nData.outgoing_dependencies || [];
-              for (const dep of outDeps) {
-                if (dep.entity_id) {
-                  const key = `${ent.entity_id}->${dep.entity_id}:${dep.relationship}`;
-                  if (!edgeKeySet.has(key)) {
-                    edgeKeySet.add(key);
-                    collectedEdges.push({
-                      id: key,
-                      source_id: ent.entity_id,
-                      target_id: dep.entity_id,
-                      source_name: ent.name,
-                      target_name: dep.name,
-                      relationship: dep.relationship || 'CALLS',
-                      direction: 'OUTGOING',
-                    });
+      // 3. Fetch all verified relationships from snapshot
+      try {
+        const relResp = await authFetch(
+          `/api/v1/repos/${encodeURIComponent(repoId)}/snapshots/${encodeURIComponent(commitSha)}/graph/relationships`
+        );
+        if (relResp.ok) {
+          const relData = await relResp.json();
+          setEdges(relData.relationships || []);
+        } else {
+          // Fallback to querying neighbors if relationships endpoint is unavailable
+          const targetEntities = rawEntities.filter((e) =>
+            e.entity_types.some((t) => ['Function', 'Class'].includes(t))
+          );
+          const collectedEdges: GraphEdge[] = [];
+          const edgeKeySet = new Set<string>();
+          await Promise.all(
+            targetEntities.slice(0, 15).map(async (ent) => {
+              try {
+                const nResp = await authFetch(
+                  `/api/v1/repos/${encodeURIComponent(repoId)}/snapshots/${encodeURIComponent(commitSha)}/graph/entities/${encodeURIComponent(ent.entity_id)}/neighbors`
+                );
+                if (nResp.ok) {
+                  const nData = await nResp.json();
+                  const outDeps = nData.outgoing_dependencies || [];
+                  for (const dep of outDeps) {
+                    if (dep.entity_id) {
+                      const key = `${ent.entity_id}->${dep.entity_id}:${dep.relationship}`;
+                      if (!edgeKeySet.has(key)) {
+                        edgeKeySet.add(key);
+                        collectedEdges.push({
+                          id: key,
+                          source_id: ent.entity_id,
+                          target_id: dep.entity_id,
+                          source_name: ent.name,
+                          target_name: dep.name,
+                          relationship: dep.relationship || 'CALLS',
+                          direction: 'OUTGOING',
+                        });
+                      }
+                    }
                   }
                 }
+              } catch (err) {
+                // Non-fatal edge query error
               }
-            }
-          } catch (err) {
-            // Non-fatal edge query error
-          }
-        })
-      );
-
-      setEdges(collectedEdges);
+            })
+          );
+          setEdges(collectedEdges);
+        }
+      } catch (err) {
+        console.warn('Relationships fetch non-fatal error:', err);
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to communicate with knowledge graph service.');
     } finally {

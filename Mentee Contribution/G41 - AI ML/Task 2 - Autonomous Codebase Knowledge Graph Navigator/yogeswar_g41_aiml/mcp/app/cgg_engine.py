@@ -180,20 +180,23 @@ class ControlledGraphGatewayEngine:
 
         driver = self.get_driver()
 
+        # Ensure parameters has limit and skip defaults if query uses them
+        bound_params = dict(parameters)
+        bound_params.setdefault("limit", 500)
+        bound_params.setdefault("skip", 0)
+
         try:
             with driver.session(database="neo4j", default_access_mode=neo4j.READ_ACCESS) as session:
                 tx = session.begin_transaction(timeout=timeout_seconds)
                 try:
-                    result = tx.run(query_string, parameters)
+                    result = tx.run(query_string, bound_params)
                     for record in result:
                         # 1. Cooperative cancellation check (safely handled by the owning thread)
                         if cancel_event.is_set():
-                            tx.rollback()
                             raise QueryCancelledException(f"Query '{query_id}' was cancelled by client")
 
                         # 2. Hard 500-row limit check (AC-3.2)
                         if len(records) >= 500:
-                            tx.rollback()
                             raise ResultLimitExceededException(
                                 "Query exceeded 500 records. Transaction rolled back."
                             )
@@ -203,7 +206,6 @@ class ControlledGraphGatewayEngine:
                         chunk_size = len(json.dumps(record_data, default=str).encode("utf-8"))
                         current_buffer_bytes += chunk_size
                         if current_buffer_bytes > 64 * 1024 * 1024:
-                            tx.rollback()
                             raise MemoryLimitExceededException(
                                 "Result payload exceeded 64 MiB limit. Transaction rolled back."
                             )
@@ -213,7 +215,10 @@ class ControlledGraphGatewayEngine:
                     tx.commit()
                     return records
                 except Exception:
-                    tx.rollback()
+                    try:
+                        tx.rollback()
+                    except Exception:
+                        pass
                     raise
         finally:
             unregister_cancellation_event(query_id)

@@ -125,7 +125,7 @@ app.add_middleware(
 
 def is_cookie_secure(request: Optional[Request] = None) -> bool:
     """Determine whether authentication cookies should have the Secure flag.
-
+    
     Security rules:
     1. Explicit COOKIE_SECURE environment variable always takes precedence:
        - 'true' / '1' / 'yes' => True
@@ -625,23 +625,62 @@ async def get_snapshot_entities(
     entity_type: Optional[str] = None,
     file_path: Optional[str] = None,
     entity_id: Optional[str] = None,
+    limit: Optional[int] = None,
+    skip: Optional[int] = None,
 ):
     user = get_authenticated_user(request)
     verify_repo_access(user, repo_id)
-    return await forward_to_cgg(
-        "/api/v1/cgg/entity_lookup",
-        repo_id,
-        commit_sha,
-        method="POST",
-        json_data={
-            "name": name,
-            "entity_type": entity_type,
-            "file_path": file_path,
-            "entity_id": entity_id,
-            "repo_id": repo_id,
-            "commit_sha": commit_sha,
-        },
-    )
+
+    # If caller explicitly provided pagination parameters, forward directly
+    if limit is not None or skip is not None:
+        return await forward_to_cgg(
+            "/api/v1/cgg/entity_lookup",
+            repo_id,
+            commit_sha,
+            method="POST",
+            json_data={
+                "name": name,
+                "entity_type": entity_type,
+                "file_path": file_path,
+                "entity_id": entity_id,
+                "limit": limit,
+                "skip": skip if skip is not None else 0,
+                "repo_id": repo_id,
+                "commit_sha": commit_sha,
+            },
+        )
+
+    # Otherwise (e.g. dashboard browsing), safely aggregate pages up to a reasonable cap
+    # Each individual CGG query is bounded to <= 500 per AC-3.1 / AC-3.2
+    all_entities = []
+    current_skip = 0
+    page_limit = 500
+    max_total_entities = 5000
+
+    while len(all_entities) < max_total_entities:
+        page_res = await forward_to_cgg(
+            "/api/v1/cgg/entity_lookup",
+            repo_id,
+            commit_sha,
+            method="POST",
+            json_data={
+                "name": name,
+                "entity_type": entity_type,
+                "file_path": file_path,
+                "entity_id": entity_id,
+                "limit": page_limit,
+                "skip": current_skip,
+                "repo_id": repo_id,
+                "commit_sha": commit_sha,
+            },
+        )
+        entities = page_res.get("entities", [])
+        all_entities.extend(entities)
+        if len(entities) < page_limit:
+            break
+        current_skip += page_limit
+
+    return {"entities": all_entities, "count": len(all_entities)}
 
 
 @app.get("/api/v1/repos/{repo_id}/snapshots/{commit_sha}/graph/entities/{entity_id}")
@@ -706,6 +745,61 @@ async def get_snapshot_evidence(
     )
 
 
+@app.get("/api/v1/repos/{repo_id}/snapshots/{commit_sha}/graph/relationships")
+async def get_snapshot_relationships(
+    repo_id: str,
+    commit_sha: str,
+    request: Request,
+    relationship_type: Optional[str] = None,
+    limit: Optional[int] = None,
+    skip: Optional[int] = None,
+):
+    user = get_authenticated_user(request)
+    verify_repo_access(user, repo_id)
+
+    if limit is not None or skip is not None:
+        return await forward_to_cgg(
+            "/api/v1/cgg/relationships",
+            repo_id,
+            commit_sha,
+            method="POST",
+            json_data={
+                "relationship_type": relationship_type,
+                "limit": limit,
+                "skip": skip if skip is not None else 0,
+                "repo_id": repo_id,
+                "commit_sha": commit_sha,
+            },
+        )
+
+    all_relationships = []
+    current_skip = 0
+    page_limit = 500
+    max_total = 5000
+
+    while len(all_relationships) < max_total:
+        page_res = await forward_to_cgg(
+            "/api/v1/cgg/relationships",
+            repo_id,
+            commit_sha,
+            method="POST",
+            json_data={
+                "relationship_type": relationship_type,
+                "limit": page_limit,
+                "skip": current_skip,
+                "repo_id": repo_id,
+                "commit_sha": commit_sha,
+            },
+        )
+        rels = page_res.get("relationships", [])
+        all_relationships.extend(rels)
+        if len(rels) < page_limit:
+            break
+        current_skip += page_limit
+
+    return {"relationships": all_relationships, "count": len(all_relationships)}
+
+
 @app.get("/api/v1/repos/{repo_id}/snapshots/{commit_sha}/graph/unresolved_calls")
 async def get_snapshot_unresolved_calls(
     repo_id: str,
@@ -713,21 +807,55 @@ async def get_snapshot_unresolved_calls(
     request: Request,
     source_entity_id: Optional[str] = None,
     file_path: Optional[str] = None,
+    limit: Optional[int] = None,
+    skip: Optional[int] = None,
 ):
     user = get_authenticated_user(request)
     verify_repo_access(user, repo_id)
-    return await forward_to_cgg(
-        "/api/v1/cgg/unresolved_calls",
-        repo_id,
-        commit_sha,
-        method="POST",
-        json_data={
-            "source_entity_id": source_entity_id,
-            "file_path": file_path,
-            "repo_id": repo_id,
-            "commit_sha": commit_sha,
-        },
-    )
+
+    if limit is not None or skip is not None:
+        return await forward_to_cgg(
+            "/api/v1/cgg/unresolved_calls",
+            repo_id,
+            commit_sha,
+            method="POST",
+            json_data={
+                "source_entity_id": source_entity_id,
+                "file_path": file_path,
+                "limit": limit,
+                "skip": skip if skip is not None else 0,
+                "repo_id": repo_id,
+                "commit_sha": commit_sha,
+            },
+        )
+
+    all_calls = []
+    current_skip = 0
+    page_limit = 500
+    max_total_calls = 5000
+
+    while len(all_calls) < max_total_calls:
+        page_res = await forward_to_cgg(
+            "/api/v1/cgg/unresolved_calls",
+            repo_id,
+            commit_sha,
+            method="POST",
+            json_data={
+                "source_entity_id": source_entity_id,
+                "file_path": file_path,
+                "limit": page_limit,
+                "skip": current_skip,
+                "repo_id": repo_id,
+                "commit_sha": commit_sha,
+            },
+        )
+        calls = page_res.get("unresolved_calls", [])
+        all_calls.extend(calls)
+        if len(calls) < page_limit:
+            break
+        current_skip += page_limit
+
+    return {"unresolved_calls": all_calls, "count": len(all_calls)}
 
 
 @app.get("/api/v1/repos/{repo_id}/snapshots/{commit_sha}/file")
@@ -1404,3 +1532,8 @@ def remove_repo_member_endpoint(repo_id: str, target_user_id: str, request: Requ
         conn.commit()
 
     return MessageResponse(message=f"Membership revoked for user {target_user_id} on repository {repo_id}")
+
+
+
+
+

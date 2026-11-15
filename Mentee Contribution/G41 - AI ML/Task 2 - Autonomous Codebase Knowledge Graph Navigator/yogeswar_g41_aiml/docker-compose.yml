@@ -149,6 +149,9 @@ services:
 
   neo4j:
     image: neo4j:5.18-community
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
     entrypoint:
       - "bash"
       - "-c"

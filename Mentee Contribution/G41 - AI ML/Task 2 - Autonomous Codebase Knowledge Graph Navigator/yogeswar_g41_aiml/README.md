@@ -249,5 +249,5 @@ Follow this step-by-step walkthrough to demonstrate the system live:
 ## Production Operations & Deployment Runbook
 
 For production deployment configuration, environment variables, secrets management, and database backup procedures, see:
-- [DEPLOYMENT.md](file:///c:/Users/Lenovo/yogeswar_G41_aiml/Autonomous_Codebase_Knowledge_Graph_Navigator/DEPLOYMENT.md)
-- [.env.production.example](file:///c:/Users/Lenovo/yogeswar_G41_aiml/Autonomous_Codebase_Knowledge_Graph_Navigator/.env.production.example)
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+- [.env.example](.env.example)

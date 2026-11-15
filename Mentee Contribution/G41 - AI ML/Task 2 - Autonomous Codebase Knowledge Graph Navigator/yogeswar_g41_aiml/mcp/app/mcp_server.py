@@ -204,7 +204,7 @@ def execute_tool(
         bound_params["commit_sha"] = commit_sha
 
         # Fill optional keys if not supplied
-        for k in ["entity_id", "name", "file_path", "entity_type", "start_entity_id", "source_entity_id", "target_entity_id", "evidence_id"]:
+        for k in ["entity_id", "name", "file_path", "entity_type", "start_entity_id", "source_entity_id", "target_entity_id", "evidence_id", "limit", "skip"]:
             bound_params.setdefault(k, None)
 
         records = engine.execute_cgg_query(query_id, template, bound_params)
@@ -259,6 +259,17 @@ def execute_tool(
 
     elif tool_name == "cgg.entity_lookup":
         template = get_template("entity_lookup")
+        raw_limit = arguments.get("limit")
+        try:
+            limit = min(max(int(raw_limit), 1), 500) if raw_limit is not None else 500
+        except (ValueError, TypeError):
+            limit = 500
+        raw_skip = arguments.get("skip")
+        try:
+            skip = max(int(raw_skip), 0) if raw_skip is not None else 0
+        except (ValueError, TypeError):
+            skip = 0
+
         params = {
             "repo_id": repo_id,
             "commit_sha": commit_sha,
@@ -266,9 +277,11 @@ def execute_tool(
             "entity_type": arguments.get("entity_type"),
             "file_path": arguments.get("file_path"),
             "entity_id": arguments.get("entity_id"),
+            "limit": limit,
+            "skip": skip,
         }
         records = engine.execute_cgg_query(query_id, template, params)
-        return {"entities": records, "count": len(records)}
+        return {"entities": records, "count": len(records), "limit": limit, "skip": skip}
 
     elif tool_name == "cgg.entity_details":
         ent_id = arguments.get("entity_id")
@@ -351,19 +364,55 @@ def execute_tool(
 
     elif tool_name == "cgg.unresolved_calls":
         template = get_template("unresolved_calls")
+        raw_limit = arguments.get("limit")
+        try:
+            limit = min(max(int(raw_limit), 1), 500) if raw_limit is not None else 500
+        except (ValueError, TypeError):
+            limit = 500
+        raw_skip = arguments.get("skip")
+        try:
+            skip = max(int(raw_skip), 0) if raw_skip is not None else 0
+        except (ValueError, TypeError):
+            skip = 0
+
         params = {
             "repo_id": repo_id,
             "commit_sha": commit_sha,
             "source_entity_id": arguments.get("source_entity_id"),
             "file_path": arguments.get("file_path"),
+            "limit": limit,
+            "skip": skip,
         }
         records = engine.execute_cgg_query(query_id, template, params)
-        return {"unresolved_calls": records, "count": len(records)}
+        return {"unresolved_calls": records, "count": len(records), "limit": limit, "skip": skip}
 
     elif tool_name == "cgg.graph_statistics":
         template = get_template("graph_statistics")
         records = engine.execute_cgg_query(query_id, template, {"repo_id": repo_id, "commit_sha": commit_sha})
         return records[0] if records else {}
+
+    elif tool_name == "cgg.snapshot_relationships":
+        template = get_template("snapshot_relationships")
+        raw_limit = arguments.get("limit")
+        try:
+            limit = min(max(int(raw_limit), 1), 500) if raw_limit is not None else 500
+        except (ValueError, TypeError):
+            limit = 500
+        raw_skip = arguments.get("skip")
+        try:
+            skip = max(int(raw_skip), 0) if raw_skip is not None else 0
+        except (ValueError, TypeError):
+            skip = 0
+
+        params = {
+            "repo_id": repo_id,
+            "commit_sha": commit_sha,
+            "relationship_type": arguments.get("relationship_type"),
+            "limit": limit,
+            "skip": skip,
+        }
+        records = engine.execute_cgg_query(query_id, template, params)
+        return {"relationships": records, "count": len(records), "limit": limit, "skip": skip}
 
     else:
         raise ValueError(f"Unknown tool: '{tool_name}'")

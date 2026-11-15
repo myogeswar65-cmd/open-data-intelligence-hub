@@ -249,6 +249,8 @@ class EntityLookupRequest(BaseModel):
     entity_type: Optional[str] = None
     file_path: Optional[str] = None
     entity_id: Optional[str] = None
+    limit: Optional[int] = 500
+    skip: Optional[int] = 0
     repo_id: Optional[str] = None
     commit_sha: Optional[str] = None
 
@@ -266,6 +268,8 @@ def cgg_entity_lookup(
             "entity_type": req.entity_type,
             "file_path": req.file_path,
             "entity_id": req.entity_id,
+            "limit": req.limit,
+            "skip": req.skip,
         },
         claims,
     )
@@ -357,6 +361,8 @@ def cgg_relationship_evidence(
 class UnresolvedCallsRequest(BaseModel):
     source_entity_id: Optional[str] = None
     file_path: Optional[str] = None
+    limit: Optional[int] = 500
+    skip: Optional[int] = 0
     repo_id: Optional[str] = None
     commit_sha: Optional[str] = None
 
@@ -372,6 +378,8 @@ def cgg_unresolved_calls(
         {
             "source_entity_id": req.source_entity_id,
             "file_path": req.file_path,
+            "limit": req.limit,
+            "skip": req.skip,
         },
         claims,
     )
@@ -389,3 +397,28 @@ def cgg_statistics(
 ):
     enforce_scope(claims, req.repo_id, req.commit_sha)
     return execute_tool("cgg.graph_statistics", {}, claims)
+
+
+class SnapshotRelationshipsRequest(BaseModel):
+    relationship_type: Optional[str] = None
+    limit: Optional[int] = 500
+    skip: Optional[int] = 0
+    repo_id: Optional[str] = None
+    commit_sha: Optional[str] = None
+
+
+@app.post("/api/v1/cgg/relationships")
+def cgg_snapshot_relationships(
+    req: SnapshotRelationshipsRequest,
+    claims: Dict[str, Any] = Depends(get_internal_service_claims),
+):
+    enforce_scope(claims, req.repo_id, req.commit_sha)
+    return execute_tool(
+        "cgg.snapshot_relationships",
+        {
+            "relationship_type": req.relationship_type,
+            "limit": req.limit,
+            "skip": req.skip,
+        },
+        claims,
+    )

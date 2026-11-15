@@ -31,7 +31,9 @@ QUERY_TEMPLATES: Dict[str, str] = {
                e.line_end AS line_end,
                e.signature_hash AS signature_hash,
                [lbl IN labels(e) WHERE lbl <> 'Entity'] AS entity_types
-        LIMIT 501;
+        ORDER BY e.file_path, e.line_start
+        SKIP coalesce($skip, 0)
+        LIMIT coalesce($limit, 500);
     """,
 
     # 3. Entity Details & Source Provenance
@@ -235,7 +237,9 @@ QUERY_TEMPLATES: Dict[str, str] = {
                 candidate_file: cand.file_path,
                 classification: 'potential_uncertain'
             }) AS candidate_targets
-        LIMIT 501;
+        ORDER BY uc.file_path, uc.line_range
+        SKIP coalesce($skip, 0)
+        LIMIT coalesce($limit, 500);
     """,
 
     # 8. Graph Statistics for Snapshot
@@ -257,6 +261,24 @@ QUERY_TEMPLATES: Dict[str, str] = {
             total_relationships,
             total_evidence,
             count(uc) AS total_unresolved_calls;
+    """,
+
+    # 9. All Verified Relationships in Snapshot
+    "snapshot_relationships": """
+        MATCH (src:Entity {repo_id: $repo_id, commit_sha: $commit_sha})-[r {repo_id: $repo_id, commit_sha: $commit_sha}]->(tgt:Entity {repo_id: $repo_id, commit_sha: $commit_sha})
+        WHERE ($relationship_type IS NULL OR type(r) = $relationship_type)
+          AND type(r) IN ['CALLS', 'IMPORTS', 'EXTENDS', 'CONTAINS', 'DEFINES']
+        RETURN
+            elementId(r) AS id,
+            src.entity_id AS source_id,
+            src.name AS source_name,
+            tgt.entity_id AS target_id,
+            tgt.name AS target_name,
+            type(r) AS relationship,
+            'OUTGOING' AS direction
+        ORDER BY src.name, tgt.name
+        SKIP coalesce($skip, 0)
+        LIMIT coalesce($limit, 500);
     """,
 }
 
