@@ -1,0 +1,45 @@
+# Environment variables and local configs
+.env
+.env.*
+!.env.example
+
+# Secrets, private keys, certificates, passwords
+secrets/
+*.pem
+*.key
+*.password
+*.pwd
+nginx/certs/*.key
+
+# Local databases and storage
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Git bare storage mirrors (Section 19.2)
+git_storage/
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.pytest_cache/
+
+# Node / Frontend build output & dependencies
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Operating System files
+.DS_Store
+Thumbs.db
