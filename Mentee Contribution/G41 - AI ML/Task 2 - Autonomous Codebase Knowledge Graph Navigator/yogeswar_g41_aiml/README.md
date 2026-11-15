@@ -3,6 +3,13 @@
 An enterprise-grade, evidence-grounded AI systems architecture for autonomously understanding, traversing, and evaluating complex software codebases across Git snapshots using Knowledge Graphs, Controlled Graph Gateways (CGG), Sentence Transformers GraphRAG, and LangGraph multi-agent supervisors.
 
 ---
+🚀 Live Deployment
+
+Live Application: https://desktop-jd1g89s.tail6038c7.ts.net/
+
+Hosted through Tailscale Funnel. Availability depends on the host machine and Funnel service being online.
+
+---
 
 ## System Architecture
 
