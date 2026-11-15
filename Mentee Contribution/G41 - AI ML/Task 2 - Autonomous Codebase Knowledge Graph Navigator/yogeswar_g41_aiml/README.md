@@ -3,21 +3,10 @@
 An enterprise-grade, evidence-grounded AI systems architecture for autonomously understanding, traversing, and evaluating complex software codebases across Git snapshots using Knowledge Graphs, Controlled Graph Gateways (CGG), Sentence Transformers GraphRAG, and LangGraph multi-agent supervisors.
 
 ---
-🚀 Live Deployment
-
-Live Application: https://desktop-jd1g89s.tail6038c7.ts.net/
-
-Hosted through Tailscale Funnel. Availability depends on the host machine and Funnel service being online.
----
-
-username: welcome ,
-password: demo123
-
----
 
 ## System Architecture
 
-```
+```text
                                     ┌────────────────────────┐
                                     │    React Frontend      │
                                     │  (TypeScript + Vite)   │
@@ -55,6 +44,32 @@ password: demo123
                      │  - AST Code Graph    │
                      └──────────────────────┘
 ```
+
+---
+
+## 🚀 Live Deployment
+
+### 1. Public Static Demo — Cloudflare Pages
+
+**Live Application:** https://codebase-kg-navigator.pages.dev/
+
+Hosted on Cloudflare Pages. This is an independent, static, read-only demonstration powered by a backed-up graph snapshot.
+
+- Accessible even when the local host machine is switched off.
+- Does not require the local Docker Compose stack.
+- Includes the graph visualization and browser-side Change Impact Analysis.
+- Uses a snapshot containing 971 entities and 1,348 verified relationships.
+- Static demo functionality is limited to the features implemented using the bundled snapshot; backend-dependent AI agents, live ingestion and GraphRAG operations are not available in this deployment.
+
+### 2. Full-Stack Application — Tailscale Funnel
+
+**Live Application:** https://desktop-jd1g89s.tail6038c7.ts.net/
+
+Hosted through Tailscale Funnel.
+
+This deployment provides access to the full-stack application, including its backend services and Docker-based architecture.
+
+**Availability:** Depends on the host machine, Docker services and Tailscale Funnel remaining online. The application will not be accessible when the host machine is switched off.
 
 ---
 
